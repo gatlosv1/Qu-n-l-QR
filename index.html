@@ -133,7 +133,7 @@
           <h3>Lịch sử QR Code</h3>
           
           <div class="history-actions">
-            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về (và xoá)</button>
+            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về</button>
             <button id="importBtn" class="import-btn">📤 Nhập lịch sử từ file</button>
             <button id="deleteAllBtn" class="delete-all-btn">🗑️ Xoá toàn bộ lịch sử</button>
           </div>
@@ -231,13 +231,11 @@
         return false;
       }
 
-      // Export + Xoá lịch sử (có mật khẩu)
+      // Export - Chỉ tải về (có mật khẩu, KHÔNG xoá)
       document.getElementById('exportBtn').addEventListener('click', () => {
         if (history.length === 0) return alert('Lịch sử trống!');
 
         if (!checkPassword()) return;
-
-        if (!confirm('Bạn có chắc muốn tải lịch sử về và XOÁ toàn bộ lịch sử hiện tại?')) return;
 
         const dataStr = JSON.stringify(history, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
@@ -248,10 +246,7 @@
         link.click();
         URL.revokeObjectURL(url);
 
-        history = [];
-        localStorage.removeItem('qrHistory');
-        renderHistory();
-        alert('✅ Đã tải lịch sử về và xoá lịch sử thành công!');
+        alert('✅ Đã tải lịch sử về thành công!');
       });
 
       // Xoá toàn bộ lịch sử (có mật khẩu)
