@@ -106,8 +106,8 @@
           <div class="form-row">
             <label for="hang">Hàng</label>
             <select id="hang">
-              <option value="D">D - Doni</option>
-              <option value="R">R - Ri6</option>
+              <option value="D">D </option>
+              <option value="R">R </option>
             </select>
             <label for="mui" style="width:90px;">Múi</label>
             <select id="mui" style="width:140px">
@@ -133,7 +133,7 @@
           <h3>Lịch sử QR Code</h3>
           
           <div class="history-actions">
-            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về</button>
+            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về (ZIP)</button>
             <button id="importBtn" class="import-btn">📤 Nhập lịch sử từ file</button>
             <button id="deleteAllBtn" class="delete-all-btn">🗑️ Xoá toàn bộ lịch sử</button>
           </div>
@@ -153,6 +153,9 @@
 
     <input type="file" id="importFile" accept=".json" style="display:none;">
 
+    <!-- Thư viện cần thiết -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
       const clockEl = document.getElementById('realtimeClock');
@@ -222,34 +225,62 @@
         renderHistory();
       };
 
-      // Hàm kiểm tra mật khẩu chung
+      // Kiểm tra mật khẩu
       function checkPassword() {
-        const password = prompt('Nhập mật khẩu để thực hiện:');
+        const password = prompt('Nhập mật khẩu để tải file ZIP:');
         if (password === null) return false;
         if (password === "CTYCT2026") return true;
         alert('❌ Mật khẩu sai!');
         return false;
       }
 
-      // Export - Chỉ tải về (có mật khẩu, KHÔNG xoá)
-      document.getElementById('exportBtn').addEventListener('click', () => {
+      // Export ra ZIP chứa JSON + Excel
+      document.getElementById('exportBtn').addEventListener('click', async () => {
         if (history.length === 0) return alert('Lịch sử trống!');
 
         if (!checkPassword()) return;
 
-        const dataStr = JSON.stringify(history, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        const dateStr = new Date().toISOString().slice(0,10);
+        const zip = new JSZip();
+
+        // 1. Tạo file JSON
+        const jsonStr = JSON.stringify(history, null, 2);
+        zip.file(`qr-history-${dateStr}.json`, jsonStr);
+
+        // 2. Tạo file Excel
+        const excelData = history.map(item => ({
+          "Mã Lô": item.ma_lo,
+          "Ngày Nhập": item.ngay_display,
+          "Thời gian": item.timestamp,
+          "TTxe": item.ttxe,
+          "NCC": item.ncc,
+          "Nơi XS": item.noi,
+          "Hàng": item.hang,
+          "Múi": item.mui,
+          "Vị Trí 1": item.vitri1 || "",
+          "Vị Trí 2": item.vitri2 || ""
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(excelData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "LichSuQR");
+        
+        const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+        zip.file(`qr-history-${dateStr}.xlsx`, excelBuffer);
+
+        // Tạo và tải file ZIP
+        const zipBlob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `qr-history-${new Date().toISOString().slice(0,10)}.json`;
+        link.download = `qr-history-${dateStr}.zip`;
         link.click();
         URL.revokeObjectURL(url);
 
-        alert('✅ Đã tải lịch sử về thành công!');
+        alert('✅ Đã tải file ZIP chứa JSON và Excel thành công!');
       });
 
-      // Xoá toàn bộ lịch sử (có mật khẩu)
+      // Xoá toàn bộ lịch sử
       document.getElementById('deleteAllBtn').addEventListener('click', () => {
         if (history.length === 0) return alert('Lịch sử đã trống!');
 
@@ -263,7 +294,7 @@
         }
       });
 
-      // Import lịch sử
+      // Import JSON
       document.getElementById('importBtn').addEventListener('click', () => {
         document.getElementById('importFile').click();
       });
