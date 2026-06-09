@@ -40,6 +40,7 @@
       button.print-btn { background:#28a745; color:white; font-size:13px; padding:6px 14px; }
       button.export-btn { background:#17a2b8; color:white; }
       button.import-btn { background:#ffc107; color:black; }
+      button.delete-all-btn { background:#dc3545; color:white; }
 
       #qrcode { width:320px; height:320px; display:flex; align-items:center; justify-content:center; border:1px dashed #ddd; background:white; }
       .history-list { max-height: 520px; overflow-y: auto; }
@@ -48,7 +49,7 @@
       }
       .history-item:hover { background: #f8f9ff; }
       .note { font-size:12px; color:#666; margin-top:8px; }
-      .history-actions { margin: 10px 0; display: flex; gap: 8px; }
+      .history-actions { margin: 10px 0; display: flex; gap: 8px; flex-wrap: wrap; }
     </style>
   </head>
   <body>
@@ -67,7 +68,6 @@
         <!-- Tab Tạo QR -->
         <div id="create-tab">
           <h3>Tạo QR Mới</h3>
-          <!-- Form giữ nguyên như cũ -->
           <div class="form-row">
             <label for="ttxe">TTxe</label>
             <select id="ttxe">
@@ -133,8 +133,9 @@
           <h3>Lịch sử QR Code</h3>
           
           <div class="history-actions">
-            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về</button>
+            <button id="exportBtn" class="export-btn">📥 Tải lịch sử về (và xoá)</button>
             <button id="importBtn" class="import-btn">📤 Nhập lịch sử từ file</button>
+            <button id="deleteAllBtn" class="delete-all-btn">🗑️ Xoá toàn bộ lịch sử</button>
           </div>
 
           <input type="text" id="searchHistory" placeholder="Tìm theo mã QR..." style="width:100%; padding:10px; margin-bottom:10px;">
@@ -221,10 +222,23 @@
         renderHistory();
       };
 
-      // Export lịch sử
+      // Hàm kiểm tra mật khẩu chung
+      function checkPassword() {
+        const password = prompt('Nhập mật khẩu để thực hiện:');
+        if (password === null) return false;
+        if (password === "CTYCT2025") return true;
+        alert('❌ Mật khẩu sai!');
+        return false;
+      }
+
+      // Export + Xoá lịch sử (có mật khẩu)
       document.getElementById('exportBtn').addEventListener('click', () => {
         if (history.length === 0) return alert('Lịch sử trống!');
-        
+
+        if (!checkPassword()) return;
+
+        if (!confirm('Bạn có chắc muốn tải lịch sử về và XOÁ toàn bộ lịch sử hiện tại?')) return;
+
         const dataStr = JSON.stringify(history, null, 2);
         const blob = new Blob([dataStr], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -233,6 +247,25 @@
         link.download = `qr-history-${new Date().toISOString().slice(0,10)}.json`;
         link.click();
         URL.revokeObjectURL(url);
+
+        history = [];
+        localStorage.removeItem('qrHistory');
+        renderHistory();
+        alert('✅ Đã tải lịch sử về và xoá lịch sử thành công!');
+      });
+
+      // Xoá toàn bộ lịch sử (có mật khẩu)
+      document.getElementById('deleteAllBtn').addEventListener('click', () => {
+        if (history.length === 0) return alert('Lịch sử đã trống!');
+
+        if (!checkPassword()) return;
+
+        if (confirm('Bạn có chắc chắn muốn XOÁ TOÀN BỘ lịch sử? Hành động này không thể hoàn tác!')) {
+          history = [];
+          localStorage.removeItem('qrHistory');
+          renderHistory();
+          alert('✅ Đã xoá toàn bộ lịch sử thành công!');
+        }
       });
 
       // Import lịch sử
