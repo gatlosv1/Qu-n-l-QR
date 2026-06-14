@@ -113,14 +113,17 @@
             <select id="mui" style="width:140px">
               <option value="0K">0K</option>
               <option value="0M">0M</option>
-              <option value="TA">TA</option>
-              <option value="TB">TB</option>
             </select>
           </div>
 
           <div class="form-row">
             <label for="ngay">Ngày Nhập</label>
             <input id="ngay" type="date" disabled>
+          </div>
+
+          <div class="form-row">
+            <label for="tongkl">Tổng KT</label>
+            <input id="tongkl" type="text" placeholder="Nhập tổng khối lượng (kg)">
           </div>
 
           <div class="buttons">
@@ -155,7 +158,7 @@
 
     <input type="file" id="importFile" accept=".json" style="display:none;">
 
-    <!-- Thư viện cần thiết -->
+    <!-- Thư viện -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -201,13 +204,24 @@
       window.loadQRFromHistory = function(item) {
         qDiv.innerHTML = '';
         new QRCode(qDiv, { text: item.ma_lo, width: 320, height: 320 });
-        qText.innerHTML = `<div style="font-weight:600;">${item.ma_lo}</div><div>Ngày: ${item.ngay_display}</div>`;
+        
+        qText.innerHTML = `
+          <div style="font-weight:600;">${item.ma_lo}</div>
+          <div>Ngày: ${item.ngay_display}</div>
+          ${item.tongkl ? `<div>Tổng KT: ${item.tongkl} kg</div>` : ''}
+        `;
       };
 
       window.printFromHistory = function(ma_lo, ngay) {
+        const item = history.find(h => h.ma_lo === ma_lo);
         qDiv.innerHTML = '';
         new QRCode(qDiv, { text: ma_lo, width: 320, height: 320 });
-        qText.innerHTML = `<div style="font-weight:600;">${ma_lo}</div><div>Ngày: ${ngay}</div>`;
+        
+        qText.innerHTML = `
+          <div style="font-weight:600;">${ma_lo}</div>
+          <div>Ngày: ${ngay}</div>
+          ${item && item.tongkl ? `<div>Tổng KT: ${item.tongkl} kg</div>` : ''}
+        `;
         setTimeout(() => window.print(), 300);
       };
 
@@ -227,7 +241,6 @@
         renderHistory();
       };
 
-      // Kiểm tra mật khẩu
       function checkPassword() {
         const password = prompt('Nhập mật khẩu để tải file ZIP:');
         if (password === null) return false;
@@ -236,20 +249,81 @@
         return false;
       }
 
-      // Export ra ZIP chứa JSON + Excel
+      // Tạo QR
+      document.getElementById('genBtn').addEventListener('click', () => {
+        const ttxe = document.getElementById('ttxe').value.trim();
+        if (!ttxe) return alert('Vui lòng chọn TTxe!');
+
+        const ncc = document.getElementById('ncc').value;
+        const noi = document.getElementById('noi').value;
+        const hang = document.getElementById('hang').value;
+        const mui = document.getElementById('mui').value;
+        const vitri1 = document.getElementById('vitri1').value.trim();
+        const vitri2 = document.getElementById('vitri2').value.trim();
+        const tongkl = document.getElementById('tongkl').value.trim();
+
+        const dateObj = new Date(document.getElementById('ngay').value);
+        const dd = pad(dateObj.getDate());
+        const mm = pad(dateObj.getMonth() + 1);
+        const yy = String(dateObj.getFullYear());
+        const ylast = yy.charAt(yy.length - 1);
+
+        let posPart = '';
+        if (vitri1 && vitri2) posPart = vitri1 + '/' + vitri2;
+        else if (vitri1) posPart = vitri1;
+
+        const ma_lo = hang + ncc + noi + dd + mm + ylast + '-' + ttxe + '-' + mui + (posPart ? '-' + posPart : '');
+
+        qDiv.innerHTML = '';
+        new QRCode(qDiv, { text: ma_lo, width: 320, height: 320 });
+
+        const displayDate = dd + '/' + mm + '/' + yy;
+
+        qText.innerHTML = `
+          <div style="font-weight:600;">${ma_lo}</div>
+          <div>Ngày: ${displayDate}</div>
+          ${tongkl ? `<div>Tổng KT: ${tongkl} kg</div>` : ''}
+        `;
+
+        saveToHistory({ 
+          ma_lo, 
+          ngay_display: displayDate, 
+          ttxe, ncc, noi, hang, mui, 
+          vitri1, vitri2, 
+          tongkl 
+        });
+      });
+
+      document.getElementById('printBtn').addEventListener('click', () => {
+        if (qDiv.innerHTML.includes('chờ tạo QR')) return alert('Vui lòng tạo QR trước!');
+        window.print();
+      });
+
+      document.getElementById('clearBtn').addEventListener('click', () => {
+        document.getElementById('ttxe').value = '';
+        document.getElementById('vitri1').value = '';
+        document.getElementById('vitri2').value = '';
+        document.getElementById('tongkl').value = '';
+        setCurrentDate();
+        document.getElementById('ncc').selectedIndex = 0;
+        document.getElementById('noi').selectedIndex = 0;
+        document.getElementById('hang').selectedIndex = 0;
+        document.getElementById('mui').selectedIndex = 0;
+        qDiv.innerHTML = 'chờ tạo QR';
+        qText.textContent = '';
+      });
+
+      // Export ZIP
       document.getElementById('exportBtn').addEventListener('click', async () => {
         if (history.length === 0) return alert('Lịch sử trống!');
-
         if (!checkPassword()) return;
 
         const dateStr = new Date().toISOString().slice(0,10);
         const zip = new JSZip();
 
-        // 1. Tạo file JSON
         const jsonStr = JSON.stringify(history, null, 2);
         zip.file(`qr-history-${dateStr}.json`, jsonStr);
 
-        // 2. Tạo file Excel
         const excelData = history.map(item => ({
           "Mã Lô": item.ma_lo,
           "Ngày Nhập": item.ngay_display,
@@ -260,7 +334,8 @@
           "Hàng": item.hang,
           "Múi": item.mui,
           "Vị Trí 1": item.vitri1 || "",
-          "Vị Trí 2": item.vitri2 || ""
+          "Vị Trí 2": item.vitri2 || "",
+          "Tổng KT": item.tongkl || ""
         }));
 
         const ws = XLSX.utils.json_to_sheet(excelData);
@@ -270,7 +345,6 @@
         const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
         zip.file(`qr-history-${dateStr}.xlsx`, excelBuffer);
 
-        // Tạo và tải file ZIP
         const zipBlob = await zip.generateAsync({ type: "blob" });
         const url = URL.createObjectURL(zipBlob);
         const link = document.createElement('a');
@@ -282,21 +356,7 @@
         alert('✅ Đã tải file ZIP chứa JSON và Excel thành công!');
       });
 
-      // Xoá toàn bộ lịch sử
-      document.getElementById('deleteAllBtn').addEventListener('click', () => {
-        if (history.length === 0) return alert('Lịch sử đã trống!');
-
-        if (!checkPassword()) return;
-
-        if (confirm('Bạn có chắc chắn muốn XOÁ TOÀN BỘ lịch sử? Hành động này không thể hoàn tác!')) {
-          history = [];
-          localStorage.removeItem('qrHistory');
-          renderHistory();
-          alert('✅ Đã xoá toàn bộ lịch sử thành công!');
-        }
-      });
-
-      // Import JSON
+      // Import
       document.getElementById('importBtn').addEventListener('click', () => {
         document.getElementById('importFile').click();
       });
@@ -324,55 +384,16 @@
         reader.readAsText(file);
       });
 
-      // Tạo QR
-      document.getElementById('genBtn').addEventListener('click', () => {
-        const ttxe = document.getElementById('ttxe').value.trim();
-        if (!ttxe) return alert('Vui lòng chọn TTxe!');
-
-        const ncc = document.getElementById('ncc').value;
-        const noi = document.getElementById('noi').value;
-        const hang = document.getElementById('hang').value;
-        const mui = document.getElementById('mui').value;
-        const vitri1 = document.getElementById('vitri1').value.trim();
-        const vitri2 = document.getElementById('vitri2').value.trim();
-
-        const dateObj = new Date(document.getElementById('ngay').value);
-        const dd = pad(dateObj.getDate());
-        const mm = pad(dateObj.getMonth() + 1);
-        const yy = String(dateObj.getFullYear());
-        const ylast = yy.charAt(yy.length - 1);
-
-        let posPart = '';
-        if (vitri1 && vitri2) posPart = vitri1 + '/' + vitri2;
-        else if (vitri1) posPart = vitri1;
-
-        const ma_lo = hang + ncc + noi + dd + mm + ylast + '-' + ttxe + '-' + mui + (posPart ? '-' + posPart : '');
-
-        qDiv.innerHTML = '';
-        new QRCode(qDiv, { text: ma_lo, width: 320, height: 320 });
-
-        const displayDate = dd + '/' + mm + '/' + yy;
-        qText.innerHTML = `<div style="font-weight:600;">${ma_lo}</div><div>Ngày: ${displayDate}</div>`;
-
-        saveToHistory({ ma_lo, ngay_display: displayDate, ttxe, ncc, noi, hang, mui, vitri1, vitri2 });
-      });
-
-      document.getElementById('printBtn').addEventListener('click', () => {
-        if (qDiv.innerHTML.includes('chờ tạo QR')) return alert('Vui lòng tạo QR trước!');
-        window.print();
-      });
-
-      document.getElementById('clearBtn').addEventListener('click', () => {
-        document.getElementById('ttxe').value = '';
-        document.getElementById('vitri1').value = '';
-        document.getElementById('vitri2').value = '';
-        setCurrentDate();
-        document.getElementById('ncc').selectedIndex = 0;
-        document.getElementById('noi').selectedIndex = 0;
-        document.getElementById('hang').selectedIndex = 0;
-        document.getElementById('mui').selectedIndex = 0;
-        qDiv.innerHTML = 'chờ tạo QR';
-        qText.textContent = '';
+      // Xóa toàn bộ
+      document.getElementById('deleteAllBtn').addEventListener('click', () => {
+        if (history.length === 0) return alert('Lịch sử đã trống!');
+        if (!checkPassword()) return;
+        if (confirm('Bạn có chắc chắn muốn XOÁ TOÀN BỘ lịch sử? Hành động này không thể hoàn tác!')) {
+          history = [];
+          localStorage.removeItem('qrHistory');
+          renderHistory();
+          alert('✅ Đã xoá toàn bộ lịch sử thành công!');
+        }
       });
 
       document.getElementById('searchHistory').addEventListener('input', (e) => {
