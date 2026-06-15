@@ -160,22 +160,22 @@
 
       window.loadQRFromHistory = function(item) {
         qDiv.innerHTML = '';
-        new QRCode(qDiv, { text: item.ma_lo, width: 320, height: 320 });
+        new QRCode(qDiv, { text: item.ma_lo, width: 250, height: 250 });
         qText.innerHTML = `
-          <div style="font-weight:600;">${item.ma_lo}</div>
+          <div>${item.ma_lo}</div>
           <div>Ngày: ${item.ngay_display}</div>
-          ${item.tongkl ? `<div>Tổng KL: ${item.tongkl} kg</div>` : ''}
+          ${item.tongkl ? `<div>Tổng KL: ${item.tongkl} kg</div>` : ""}
         `;
       };
 
       window.printFromHistory = function(ma_lo, ngay) {
         const item = history.find(h => h.ma_lo === ma_lo);
         qDiv.innerHTML = '';
-        new QRCode(qDiv, { text: ma_lo, width: 320, height: 320 });
+        new QRCode(qDiv, { text: ma_lo, width: 250, height: 250 });
         qText.innerHTML = `
-          <div style="font-weight:600;">${ma_lo}</div>
-          <div>Ngày: ${ngay}</div>
-          ${item && item.tongkl ? `<div>Tổng KL: ${item.tongkl} kg</div>` : ''}
+          <div>${item.ma_lo}</div>
+          <div>Ngày: ${item.ngay_display}</div>
+          ${item.tongkl ? `<div>Tổng KL: ${item.tongkl} kg</div>` : ""}
         `;
         setTimeout(() => window.print(), 300);
       };
@@ -230,14 +230,14 @@
         const ma_lo = hang + ncc + noi + dd + mm + ylast + '-' + ttxe + '-' + mui + (posPart ? '-' + posPart : '');
 
         qDiv.innerHTML = '';
-        new QRCode(qDiv, { text: ma_lo, width: 320, height: 320 });
+        new QRCode(qDiv, { text: ma_lo, width: 250, height: 250 });
 
         const displayDate = dd + '/' + mm + '/' + yy;
 
         qText.innerHTML = `
-          <div style="font-weight:600;">${ma_lo}</div>
+          <div>${ma_lo}</div>
           <div>Ngày: ${displayDate}</div>
-          ${tongkl ? `<div>Tổng KL: ${tongkl} kg</div>` : ''}
+          ${tongkl ? `<div>Tổng KL: ${tongkl} kg</div>` : ""}
         `;
 
         saveToHistory({ 
